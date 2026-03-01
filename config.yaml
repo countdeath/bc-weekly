@@ -1,0 +1,318 @@
+year: 2026
+max_items_per_discover_page: 70
+delay_ms: 900
+
+global_exclude_tags:
+  - metal
+  - black metal
+  - black-metal
+  - death metal
+  - death-metal
+  - doom metal
+  - doom-metal
+  - heavy metal
+  - heavy-metal
+  - thrash metal
+  - thrash-metal
+  - pop
+  - indie
+  - indie rock
+  - indierock
+  - indie pop
+  - indiepop
+  - bedroompop
+  - bedroom pop
+  - shoegaze
+  - hard rock
+  - hard-rock
+
+exclude_title_keywords:
+  - live
+  - remaster
+  - remastered
+  - reissue
+  - deluxe
+  - expanded
+  - anniversary
+  - compilation
+  - best of
+  - collection
+  - anthology
+  - bootleg
+  - demos
+  - outtakes
+  - session
+  - sessions
+
+blocks:
+  - name: block1_rhythmic_noise
+    label: "Блок 1. Ритмик нойз и вариации"
+    discover_urls:
+      - "https://bandcamp.com/discover/industrial-techno?s=new"
+      - "https://bandcamp.com/discover/techno-industrial?s=new"
+      - "https://bandcamp.com/discover/post-industrial?s=new"
+      - "https://bandcamp.com/discover/rhythmic-noise?s=new"
+      - "https://bandcamp.com/discover/powernoise?s=new"
+      - "https://bandcamp.com/discover/power-noise?s=new"
+      - "https://bandcamp.com/discover/techno-body-music?s=new"
+      - "https://bandcamp.com/discover/tbm?s=new"
+      - "https://bandcamp.com/discover/tribal-industrial?s=new"
+    include_tags:
+      - industrial techno
+      - techno-industrial
+      - post-industrial
+      - power noise
+      - powernoise
+      - rhythmic noise
+      - tbm
+      - techno body music
+      - techno-body-music
+      - tribal industrial
+      - tribal-industrial
+    extra_exclude_tags:
+      - hardcore
+      - gabber
+      - techno
+      - rave
+      - hard techno
+      - hard-techno
+      - trance
+      - schranz
+
+  - name: block2_chamber_darkfolk
+    label: "Блок 2. Камерные стили тёмной сцены"
+    discover_urls:
+      - "https://bandcamp.com/discover/dungeon-synth?s=new"
+      - "https://bandcamp.com/discover/medieval?s=new"
+      - "https://bandcamp.com/discover/neofolk?s=new"
+      - "https://bandcamp.com/discover/neo-folk?s=new"
+      - "https://bandcamp.com/discover/darkfolk?s=new"
+      - "https://bandcamp.com/discover/ritual-ambient?s=new"
+      - "https://bandcamp.com/discover/death-country?s=new"
+    include_tags:
+      - dungeon synth
+      - dungeon-synth
+      - medieval
+      - neofolk
+      - neo-folk
+      - darkfolk
+      - ritual ambient
+      - ritual-ambient
+      - death country
+      - death-country
+    extra_exclude_tags:
+      - metal
+      - black metal
+      - black-metal
+      - death metal
+      - death-metal
+      - doom metal
+      - doom-metal
+      - pop
+      - indie
+      - indiepop
+      - indierock
+
+  - name: block3_metal_electronics
+    label: "Блок 3. Метал и электроника"
+    discover_urls:
+      - "https://bandcamp.com/discover/electronic-rock?s=new"
+      - "https://bandcamp.com/discover/industrial-rock?s=new"
+      - "https://bandcamp.com/discover/industrial-metal?s=new"
+      - "https://bandcamp.com/discover/synthrock?s=new"
+      - "https://bandcamp.com/discover/synthpunk?s=new"
+      - "https://bandcamp.com/discover/electropunk?s=new"
+      - "https://bandcamp.com/discover/ndh?s=new"
+      - "https://bandcamp.com/discover/electro-metal?s=new"
+      - "https://bandcamp.com/discover/dance-metal?s=new"
+      - "https://bandcamp.com/discover/tanzmetal?s=new"
+    include_tags:
+      - electronic rock
+      - electronic-rock
+      - industrial rock
+      - industrial-rock
+      - industrial metal
+      - industrial-metal
+      - synth-rock
+      - synthrock
+      - synthpunk
+      - electropunk
+      - ndh
+      - electro-metal
+      - dance-metal
+      - tanzmetal
+    extra_exclude_tags:
+      - black metal
+      - black-metal
+      - death metal
+      - death-metal
+      - heavy metal
+      - heavy-metal
+      - doom metal
+      - doom-metal
+
+  - name: block4_gothic
+    label: "Блок 4. Готическая музыка"
+    discover_urls:
+      - "https://bandcamp.com/discover/post-punk?s=new"
+      - "https://bandcamp.com/discover/postpunk?s=new"
+      - "https://bandcamp.com/discover/gothic-rock?s=new"
+      - "https://bandcamp.com/discover/goth-rock?s=new"
+      - "https://bandcamp.com/discover/ethereal?s=new"
+      - "https://bandcamp.com/discover/deathrock?s=new"
+      - "https://bandcamp.com/discover/death-rock?s=new"
+      - "https://bandcamp.com/discover/steampunk?s=new"
+      - "https://bandcamp.com/discover/gothabilly?s=new"
+      - "https://bandcamp.com/discover/dark-cabaret?s=new"
+      - "https://bandcamp.com/discover/cybergoth?s=new"
+      - "https://bandcamp.com/discover/gothic-industrial?s=new"
+      - "https://bandcamp.com/discover/gothic-electro?s=new"
+    include_tags:
+      - post-punk
+      - postpunk
+      - gothic rock
+      - gothic-rock
+      - goth rock
+      - goth-rock
+      - ethereal
+      - death rock
+      - death-rock
+      - deathrock
+      - steampunk
+      - gothabilly
+      - dark cabaret
+      - dark-cabaret
+      - cybergoth
+      - gothic industrial
+      - gothic-industrial
+      - gothic electro
+      - gothic-electro
+    extra_exclude_tags:
+      - new wave
+      - new-wave
+      - black metal
+      - black-metal
+      - death metal
+      - death-metal
+      - heavy metal
+      - heavy-metal
+      - doom metal
+      - doom-metal
+      - hard rock
+      - hard-rock
+      - indierock
+      - indie rock
+      - indiepop
+      - indie pop
+      - shoegaze
+      - bedroompop
+      - bedroom pop
+
+  - name: block5_industrial
+    label: "Блок 5. Индустриальная музыка"
+    discover_urls:
+      - "https://bandcamp.com/discover/industrial?s=new"
+      - "https://bandcamp.com/discover/harsh-noise?s=new"
+      - "https://bandcamp.com/discover/power-electronics?s=new"
+      - "https://bandcamp.com/discover/death-industrial?s=new"
+      - "https://bandcamp.com/discover/martial-industrial?s=new"
+    include_tags:
+      - industrial
+      - harsh noise
+      - harsh-noise
+      - power electronics
+      - power-electronics
+      - death industrial
+      - death-industrial
+      - martial industrial
+      - martial-industrial
+      - death country
+      - death-country
+    extra_exclude_tags:
+      - black metal
+      - black-metal
+      - death metal
+      - death-metal
+      - heavy metal
+      - heavy-metal
+      - doom metal
+      - doom-metal
+
+  - name: block6_postindustrial_ebm
+    label: "Блок 6. Пост-индустриальная музыка (EBM / electro-industrial)"
+    discover_urls:
+      - "https://bandcamp.com/discover/ebm?s=new"
+      - "https://bandcamp.com/discover/dark-electro?s=new"
+      - "https://bandcamp.com/discover/electronic-body-music?s=new"
+      - "https://bandcamp.com/discover/e.b.m.?s=new"
+      - "https://bandcamp.com/discover/e.b.m?s=new"
+      - "https://bandcamp.com/discover/electro-industrial?s=new"
+      - "https://bandcamp.com/discover/old-school-ebm?s=new"
+      - "https://bandcamp.com/discover/oldschool-ebm?s=new"
+      - "https://bandcamp.com/discover/ebm-oldschool?s=new"
+      - "https://bandcamp.com/discover/harsh-ebm?s=new"
+      - "https://bandcamp.com/discover/anhalt-ebm?s=new"
+    include_tags:
+      - ebm
+      - dark electro
+      - dark-electro
+      - electro-industrial
+      - electronic body music
+      - electronic-body-music
+      - anhalt ebm
+      - anhalt-ebm
+      - e.b.m
+      - e.b.m.
+      - harsh ebm
+      - harsh-ebm
+      - oldschool ebm
+      - old-school ebm
+      - ebm oldschool
+      - ebm-oldschool
+    extra_exclude_tags:
+      - black metal
+      - black-metal
+      - death metal
+      - death-metal
+      - heavy metal
+      - heavy-metal
+      - doom metal
+      - doom-metal
+
+  - name: block7_synth_scene
+    label: "Блок 7. Синт-сцена"
+    discover_urls:
+      - "https://bandcamp.com/discover/synthpop?s=new"
+      - "https://bandcamp.com/discover/electropop?s=new"
+      - "https://bandcamp.com/discover/dream-pop?s=new"
+      - "https://bandcamp.com/discover/dreampop?s=new"
+      - "https://bandcamp.com/discover/dark-synth?s=new"
+      - "https://bandcamp.com/discover/electroclash?s=new"
+      - "https://bandcamp.com/discover/futurepop?s=new"
+    include_tags:
+      - synthpop
+      - electropop
+      - dream-pop
+      - dreampop
+      - dark synth
+      - dark-synth
+      - electroclash
+      - futurepop
+    extra_exclude_tags:
+      - black metal
+      - black-metal
+      - death metal
+      - death-metal
+      - heavy metal
+      - heavy-metal
+      - doom metal
+      - doom-metal
+      - hard rock
+      - hard-rock
+      - indierock
+      - indie rock
+      - indiepop
+      - indie pop
+      - shoegaze
+      - bedroompop
+      - bedroom pop
