@@ -8,13 +8,16 @@ from typing import Any, Dict, List, Optional, Set
 
 import yaml
 from bs4 import BeautifulSoup
-from playwright.async_api import async_playwright
+from playwright.async_api import (
+    async_playwright,
+    TimeoutError as PlaywrightTimeoutError,
+    Error as PlaywrightError,
+)
 
 try:
     from zoneinfo import ZoneInfo  # Python 3.9+
 except ImportError:
     ZoneInfo = None
-
 
 KYIV_TZ = ZoneInfo("Europe/Kiev") if ZoneInfo else None
 
@@ -81,8 +84,28 @@ def _is_banned_by_artist_url(url: str, cfg: Dict[str, Any]) -> bool:
     return False
 
 
+async def safe_goto(page, url: str, wait_until: str = "domcontentloaded", retries: int = 3) -> bool:
+    """
+    Robust navigation:
+    - retries transient network errors (NET_EMPTY_RESPONSE etc.)
+    - prevents whole run from failing due to one bad page
+    """
+    for attempt in range(1, retries + 1):
+        try:
+            await page.goto(url, wait_until=wait_until, timeout=60000)
+            return True
+        except (PlaywrightTimeoutError, PlaywrightError) as e:
+            print(f"[WARN] goto failed ({attempt}/{retries}): {url} -> {e}")
+            await page.wait_for_timeout(1500 * attempt)
+    return False
+
+
 async def discover_release_urls(page, discover_url: str, max_items: int) -> List[str]:
-    await page.goto(discover_url, wait_until="domcontentloaded")
+    ok = await safe_goto(page, discover_url, wait_until="domcontentloaded", retries=3)
+    if not ok:
+        print(f"[WARN] Skipping discover page (unreachable): {discover_url}")
+        return []
+
     for _ in range(3):
         await page.mouse.wheel(0, 2500)
         await page.wait_for_timeout(800)
@@ -99,7 +122,7 @@ async def discover_release_urls(page, discover_url: str, max_items: int) -> List
             if href.startswith("http"):
                 urls.append(href)
 
-    deduped = []
+    deduped: List[str] = []
     seen: Set[str] = set()
     for u in urls:
         if u in seen:
@@ -112,7 +135,10 @@ async def discover_release_urls(page, discover_url: str, max_items: int) -> List
 
 
 async def parse_release_page(page, url: str) -> Optional[Release]:
-    await page.goto(url, wait_until="domcontentloaded")
+    ok = await safe_goto(page, url, wait_until="domcontentloaded", retries=3)
+    if not ok:
+        return None
+
     await page.wait_for_timeout(400)
 
     html = await page.content()
@@ -142,7 +168,7 @@ async def parse_release_page(page, url: str) -> Optional[Release]:
     title = (current.get("title") or "").strip()
     canonical_url = (tralbum.get("url") or url).strip()
 
-    tags = []
+    tags: List[str] = []
     tag_container = soup.select(".tralbumData.tralbum-tags a.tag")
     if tag_container:
         for t in tag_container:
@@ -150,13 +176,12 @@ async def parse_release_page(page, url: str) -> Optional[Release]:
     tags = [t for t in tags if t]
 
     trackinfo = tralbum.get("trackinfo") or []
-    track_titles = []
+    track_titles: List[str] = []
     for tr in trackinfo:
         name = (tr.get("title") or "").strip()
         if name:
             track_titles.append(name)
 
-    # year
     year = None
     if isinstance(ld_json, dict):
         year = _extract_year(ld_json.get("datePublished", "") or "") or year
@@ -214,7 +239,9 @@ def passes_block_filters(rel: Release, cfg: Dict[str, Any], block: Dict[str, Any
 
 def render_html(grouped: Dict[str, List[Release]], cfg: Dict[str, Any]) -> str:
     year = cfg.get("year", "")
-    now_local = datetime.now(KYIV_TZ).strftime("%Y-%m-%d %H:%M") if KYIV_TZ else datetime.now().strftime("%Y-%m-%d %H:%M")
+    now_local = (
+        datetime.now(KYIV_TZ).strftime("%Y-%m-%d %H:%M") if KYIV_TZ else datetime.now().strftime("%Y-%m-%d %H:%M")
+    )
     parts = [
         "<!doctype html><html><head><meta charset='utf-8'>"
         f"<title>Bandcamp weekly {year}</title>"
@@ -255,6 +282,10 @@ async def main():
     async with async_playwright() as p:
         browser = await p.firefox.launch(headless=True)
         page = await browser.new_page()
+
+        # increase default timeouts (GitHub runner / network can be slower)
+        page.set_default_timeout(60000)
+        page.set_default_navigation_timeout(60000)
 
         for block in cfg["blocks"]:
             block_name = block["name"]
