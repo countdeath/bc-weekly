@@ -2,13 +2,21 @@ import asyncio
 import json
 import re
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set
 
 import yaml
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
+
+try:
+    from zoneinfo import ZoneInfo  # Python 3.9+
+except ImportError:
+    ZoneInfo = None
+
+
+KYIV_TZ = ZoneInfo("Europe/Kiev") if ZoneInfo else None
 
 
 @dataclass
@@ -26,7 +34,11 @@ class Release:
 
 
 def _norm_tag(s: str) -> str:
-    return re.sub(r"\s+", " ", (s or "").strip().lower())
+    # normalize: lowercase, trim, replace '-' and '_' with spaces, collapse spaces
+    x = (s or "").strip().lower()
+    x = x.replace("-", " ").replace("_", " ")
+    x = re.sub(r"\s+", " ", x)
+    return x
 
 
 def _extract_year(text: str) -> Optional[int]:
@@ -57,6 +69,16 @@ def _is_effectively_single(track_titles: List[str]) -> bool:
 def _title_has_bad_keywords(title: str, bad_keywords: List[str]) -> bool:
     t = (title or "").lower()
     return any(k.lower() in t for k in bad_keywords)
+
+
+def _is_banned_by_artist_url(url: str, cfg: Dict[str, Any]) -> bool:
+    url = (url or "").strip()
+    prefixes = cfg.get("exclude_artist_urls", []) or []
+    for p in prefixes:
+        p = (p or "").strip()
+        if p and url.startswith(p):
+            return True
+    return False
 
 
 async def discover_release_urls(page, discover_url: str, max_items: int) -> List[str]:
@@ -134,7 +156,7 @@ async def parse_release_page(page, url: str) -> Optional[Release]:
         if name:
             track_titles.append(name)
 
-    # try to get year
+    # year
     year = None
     if isinstance(ld_json, dict):
         year = _extract_year(ld_json.get("datePublished", "") or "") or year
@@ -152,11 +174,15 @@ async def parse_release_page(page, url: str) -> Optional[Release]:
         track_count=len(track_titles),
         block="",
         found_from="",
-        first_seen=datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        first_seen=datetime.now(timezone.utc).isoformat(timespec="seconds"),
     )
 
 
 def passes_block_filters(rel: Release, cfg: Dict[str, Any], block: Dict[str, Any]) -> bool:
+    # global banned artist/page
+    if _is_banned_by_artist_url(rel.url, cfg):
+        return False
+
     target_year = int(cfg.get("year", datetime.now().year))
     if rel.year != target_year:
         return False
@@ -177,6 +203,7 @@ def passes_block_filters(rel: Release, cfg: Dict[str, Any], block: Dict[str, Any
 
     global_excl = set(_norm_tag(t) for t in cfg.get("global_exclude_tags", []))
     block_excl = set(_norm_tag(t) for t in block.get("extra_exclude_tags", []))
+
     if rel_tags.intersection(global_excl):
         return False
     if rel_tags.intersection(block_excl):
@@ -187,7 +214,7 @@ def passes_block_filters(rel: Release, cfg: Dict[str, Any], block: Dict[str, Any
 
 def render_html(grouped: Dict[str, List[Release]], cfg: Dict[str, Any]) -> str:
     year = cfg.get("year", "")
-    now = datetime.now().strftime("%Y-%m-%d %H:%M")
+    now_local = datetime.now(KYIV_TZ).strftime("%Y-%m-%d %H:%M") if KYIV_TZ else datetime.now().strftime("%Y-%m-%d %H:%M")
     parts = [
         "<!doctype html><html><head><meta charset='utf-8'>"
         f"<title>Bandcamp weekly {year}</title>"
@@ -196,7 +223,7 @@ def render_html(grouped: Dict[str, List[Release]], cfg: Dict[str, Any]) -> str:
         "li{margin:6px 0} .meta{color:#666; font-size:12px}</style>"
         "</head><body>",
         f"<h1>Bandcamp weekly — {year}</h1>",
-        f"<div class='meta'>Generated: {now}</div>",
+        f"<div class='meta'>Generated (Kyiv): {now_local}</div>",
     ]
     for block_label, rels in grouped.items():
         if not rels:
@@ -222,7 +249,6 @@ async def main():
     output_dir = Path("output")
     output_dir.mkdir(exist_ok=True)
 
-    # Dedup by URL (final canonical URL)
     all_by_url: Dict[str, Release] = {}
     accepted_by_block_label: Dict[str, List[Release]] = {}
 
@@ -240,6 +266,10 @@ async def main():
                 urls = await discover_release_urls(page, durl, max_items=max_items)
 
                 for u in urls:
+                    # early skip banned artist urls to save requests
+                    if _is_banned_by_artist_url(u, cfg):
+                        continue
+
                     if u in all_by_url:
                         continue
 
@@ -252,7 +282,6 @@ async def main():
                     rel.block = block_name
                     rel.found_from = durl
 
-                    # canonical URL dedup
                     if rel.url in all_by_url:
                         continue
 
@@ -263,11 +292,15 @@ async def main():
 
         await browser.close()
 
-    # Sort for convenience
     for k in accepted_by_block_label:
         accepted_by_block_label[k].sort(key=lambda r: (r.artist.lower(), r.title.lower()))
 
-    stamp = datetime.now().strftime("%Y-%m-%d")
+    # stamp in Kyiv time, includes time to avoid overwriting even if rerun same day
+    if KYIV_TZ:
+        stamp = datetime.now(KYIV_TZ).strftime("%Y-%m-%d_%H-%M")
+    else:
+        stamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+
     html_path = output_dir / f"discover_{stamp}.html"
     json_path = output_dir / f"discover_{stamp}.json"
 
