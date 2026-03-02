@@ -2,7 +2,12 @@ year: 2026
 max_items_per_discover_page: 70
 delay_ms: 900
 
+# Полные запреты по профилям (всё с этого домена вырезаем)
+exclude_artist_urls:
+  - "https://dekonstruktionrecords.bandcamp.com/"
+
 global_exclude_tags:
+  # старое
   - metal
   - black metal
   - black-metal
@@ -25,6 +30,63 @@ global_exclude_tags:
   - shoegaze
   - hard rock
   - hard-rock
+
+  # новое (глобально отсечь)
+  - digital-hardcore
+  - darkstep
+  - breakcore
+  - noise rock
+  - instrumental hip-hop
+  - plunderphonics
+  - dubstep
+  - drum and bass
+  - grindcore
+  - basscore
+  - noisecore
+  - leftfield
+  - post-rock
+  - post rock
+  - hip hop
+  - emo
+  - hardcore techno
+  - vapornoise
+  - vaporwave
+  - rpg music
+  - bedroom folk
+  - kraut rock
+  - darkcore
+  - metalcore
+  - darktechno
+  - hardcore punk
+  - cinematic rock
+  - heavy rock
+  - progressive rock
+  - psychedelic rock
+  - classic rock
+  - egg punk
+  - eggpunk
+  - funk rock
+  - jazzcore
+  - mathcore
+  - nu disco
+  - instrumental rock
+  - video game
+  - sadcore
+  - groove metal
+  - witchhouse
+  - noise punk
+  - alternative hip-hop
+  - art rock
+  - noiserock
+  - prog-rock
+  - industrial black metal
+  - raw black metal
+  - electro house
+  - alternative r&b
+  - indie disco
+  - nintendocore
+  - cloud rap
+  - hardgroove techno
 
 exclude_title_keywords:
   - live
@@ -78,6 +140,10 @@ blocks:
       - hard-techno
       - trance
       - schranz
+      # новое
+      - trap
+      - chiptune
+      - gore
 
   - name: block2_chamber_darkfolk
     label: "Блок 2. Камерные стили тёмной сцены"
@@ -112,6 +178,17 @@ blocks:
       - indie
       - indiepop
       - indierock
+      # новое
+      - new age
+      - indie folk
+      - dreamcore
+      - instrumental folk
+      - ambient noise wall
+      - cinematic ambient
+      - soundtrack
+      - vampyric black metal
+      - soundscape
+      - instrumental
 
   - name: block3_metal_electronics
     label: "Блок 3. Метал и электроника"
@@ -150,6 +227,11 @@ blocks:
       - heavy-metal
       - doom metal
       - doom-metal
+      # новое
+      - phonk
+      - instrumental
+      - progressive electronic
+      - nu-metal
 
   - name: block4_gothic
     label: "Блок 4. Готическая музыка"
@@ -207,6 +289,14 @@ blocks:
       - shoegaze
       - bedroompop
       - bedroom pop
+      # новое
+      - instrumental
+      - idm
+      - post-garage
+      - chillwave
+      - garagerock
+      - garage punk
+      - garage-punk
 
   - name: block5_industrial
     label: "Блок 5. Индустриальная музыка"
@@ -237,6 +327,12 @@ blocks:
       - heavy-metal
       - doom metal
       - doom-metal
+      # новое
+      - punk
+      - harsh noise wall
+      - ambient noise wall
+      - hnw
+      - breakbeat hardcore
 
   - name: block6_postindustrial_ebm
     label: "Блок 6. Пост-индустриальная музыка (EBM / electro-industrial)"
@@ -278,6 +374,15 @@ blocks:
       - heavy-metal
       - doom metal
       - doom-metal
+      # новое
+      - dub techno
+      - hard techno
+      - ambient
+      - dark disco
+      - italo body music
+      - italodisco
+      - proto-house
+      - instrumental
 
   - name: block7_synth_scene
     label: "Блок 7. Синт-сцена"
@@ -316,3 +421,18 @@ blocks:
       - shoegaze
       - bedroompop
       - bedroom pop
+      # новое
+      - edm
+      - nu disco
+      - noise pop
+      - rap
+      - cloud rap
+      - retrowave
+      - ambient electronic
+      - background music
+      - electro house
+      - outrun
+      - garage
+      - dungeoncore
+      - video game music
+      - dark disco
