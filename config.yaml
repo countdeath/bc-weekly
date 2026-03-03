@@ -1,6 +1,7 @@
 max_run_minutes: 120
 per_release_timeout_sec: 90
 log_every: 25
+keep_seen_days: 90
 
 year: 2026
 max_items_per_discover_page: 70
@@ -440,4 +441,5 @@ blocks:
       - dungeoncore
       - video game music
       - dark disco
+
 
