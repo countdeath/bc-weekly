@@ -39,3 +39,4 @@ jobs:
           git add output/*.html output/*.json || true
           git commit -m "Weekly discovery update" || echo "No changes to commit"
           git push
+          git add output/*.html output/*.json state/*.json || true
