@@ -2,8 +2,7 @@ name: Bandcamp Weekly
 
 on:
   schedule:
-    # 03:00 Kyiv (зимнее время) ≈ 01:00 UTC, суббота
-    - cron: "0 1 * * 6"
+    - cron: "0 1 * * 6"   # 03:00 Kyiv зимой ≈ 01:00 UTC, суббота
   workflow_dispatch: {}
 
 permissions:
@@ -28,8 +27,10 @@ jobs:
           playwright install --with-deps
 
       - name: Run
+        env:
+          PYTHONUNBUFFERED: "1"
         run: |
-          python bc_weekly.py
+          python -u bc_weekly.py
 
       - name: Commit output
         run: |
