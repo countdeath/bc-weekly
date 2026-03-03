@@ -3,9 +3,9 @@ import json
 import re
 import time
 from dataclasses import dataclass, asdict
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import yaml
 from bs4 import BeautifulSoup
@@ -37,8 +37,11 @@ class Release:
     first_seen: str
 
 
+# -------------------------
+# Normalization / filters
+# -------------------------
+
 def _norm_tag(s: str) -> str:
-    # normalize: lowercase, trim, replace '-' and '_' with spaces, collapse spaces
     x = (s or "").strip().lower()
     x = x.replace("-", " ").replace("_", " ")
     x = re.sub(r"\s+", " ", x)
@@ -89,12 +92,11 @@ def _is_banned_by_artist_url(url: str, cfg: Dict[str, Any]) -> bool:
     return False
 
 
+# -------------------------
+# Robust navigation
+# -------------------------
+
 async def safe_goto(page, url: str, wait_until: str = "domcontentloaded", retries: int = 3) -> bool:
-    """
-    Robust navigation:
-    - retries transient network errors (NET_EMPTY_RESPONSE etc.)
-    - prevents whole run from failing due to one bad page
-    """
     for attempt in range(1, retries + 1):
         try:
             await page.goto(url, wait_until=wait_until, timeout=60000)
@@ -105,13 +107,100 @@ async def safe_goto(page, url: str, wait_until: str = "domcontentloaded", retrie
     return False
 
 
+# -------------------------
+# Persistent "seen" state
+# -------------------------
+
+def _parse_iso_dt(s: str) -> Optional[datetime]:
+    if not s:
+        return None
+    try:
+        # supports "...+00:00"
+        return datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
+def load_seen(state_path: Path, output_dir: Path) -> Dict[str, str]:
+    """
+    Returns mapping: url -> first_seen_iso
+    If state doesn't exist, seeds from latest output/discover_*.json (if present).
+    """
+    if state_path.exists():
+        try:
+            data = json.loads(state_path.read_text(encoding="utf-8"))
+            if isinstance(data, dict):
+                # ensure string keys/values
+                out = {}
+                for k, v in data.items():
+                    if isinstance(k, str) and isinstance(v, str):
+                        out[k] = v
+                return out
+        except Exception:
+            pass
+
+    # Seed from latest output JSON if exists
+    latest = find_latest_output_json(output_dir)
+    if latest:
+        try:
+            items = json.loads(latest.read_text(encoding="utf-8"))
+            now_iso = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            seeded: Dict[str, str] = {}
+            if isinstance(items, list):
+                for it in items:
+                    if isinstance(it, dict):
+                        u = it.get("url")
+                        if isinstance(u, str) and u:
+                            seeded[u] = it.get("first_seen") if isinstance(it.get("first_seen"), str) else now_iso
+            print(f"[INFO] Seeded seen-state from latest output JSON: {latest.name} (items={len(seeded)})")
+            return seeded
+        except Exception:
+            pass
+
+    print("[INFO] No existing seen-state; starting fresh.")
+    return {}
+
+
+def find_latest_output_json(output_dir: Path) -> Optional[Path]:
+    """
+    Finds most recent output/discover_*.json by filename timestamp or mtime.
+    """
+    if not output_dir.exists():
+        return None
+    candidates = sorted(output_dir.glob("discover_*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    return candidates[0] if candidates else None
+
+
+def prune_seen(seen: Dict[str, str], keep_days: int) -> Dict[str, str]:
+    cutoff = datetime.now(timezone.utc) - timedelta(days=keep_days)
+    out: Dict[str, str] = {}
+    removed = 0
+    for u, ts in seen.items():
+        dt = _parse_iso_dt(ts)
+        if dt and dt >= cutoff:
+            out[u] = ts
+        else:
+            removed += 1
+    if removed:
+        print(f"[INFO] Pruned seen-state: removed={removed}, kept={len(out)} (keep_days={keep_days})")
+    return out
+
+
+def save_seen(state_path: Path, seen: Dict[str, str]) -> None:
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_text(json.dumps(seen, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+# -------------------------
+# Scraping
+# -------------------------
+
 async def discover_release_urls(page, discover_url: str, max_items: int) -> List[str]:
     ok = await safe_goto(page, discover_url, wait_until="domcontentloaded", retries=3)
     if not ok:
         print(f"[WARN] Skipping discover page (unreachable): {discover_url}")
         return []
 
-    # small scroll to load more cards
     for _ in range(3):
         await page.mouse.wheel(0, 2500)
         await page.wait_for_timeout(800)
@@ -273,20 +362,30 @@ def render_html(grouped: Dict[str, List[Release]], cfg: Dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
+# -------------------------
+# Main
+# -------------------------
+
 async def main():
     cfg = yaml.safe_load(Path("config.yaml").read_text(encoding="utf-8"))
     max_items = int(cfg.get("max_items_per_discover_page", 60))
     delay_ms = int(cfg.get("delay_ms", 900))
 
-    # GitHub-safe run limits:
-    max_run_minutes = int(cfg.get("max_run_minutes", 40))
+    max_run_minutes = int(cfg.get("max_run_minutes", 170))
     per_release_timeout_sec = int(cfg.get("per_release_timeout_sec", 90))
     log_every = int(cfg.get("log_every", 25))
+
+    keep_seen_days = int(cfg.get("keep_seen_days", 90))
 
     run_deadline = time.time() + max_run_minutes * 60
 
     output_dir = Path("output")
     output_dir.mkdir(exist_ok=True)
+
+    state_path = Path("state") / "seen_releases.json"
+    seen_map = load_seen(state_path, output_dir)
+    seen_map = prune_seen(seen_map, keep_days=keep_seen_days)
+    seen_urls: Set[str] = set(seen_map.keys())
 
     all_by_url: Dict[str, Release] = {}
     accepted_by_block_label: Dict[str, List[Release]] = {}
@@ -331,6 +430,12 @@ async def main():
                     if _is_banned_by_artist_url(u, cfg):
                         continue
 
+                    # IMPORTANT: cross-run dedup
+                    # If we've already seen this URL in past 90 days -> skip early
+                    if u in seen_urls:
+                        continue
+
+                    # intra-run pre-dedup by raw url too
                     if u in all_by_url:
                         continue
 
@@ -349,6 +454,12 @@ async def main():
                     if not rel:
                         continue
 
+                    # if canonical URL differs, also apply seen to canonical
+                    if _is_banned_by_artist_url(rel.url, cfg):
+                        continue
+                    if rel.url in seen_urls:
+                        continue
+
                     rel.block = block_name
                     rel.found_from = durl
 
@@ -356,6 +467,10 @@ async def main():
                         continue
 
                     all_by_url[rel.url] = rel
+
+                    # mark as seen immediately (so we don't reprocess from other discover pages in same run)
+                    seen_urls.add(rel.url)
+                    seen_map[rel.url] = rel.first_seen
 
                     if passes_block_filters(rel, cfg, block):
                         accepted_by_block_label[block_label].append(rel)
@@ -383,8 +498,13 @@ async def main():
         encoding="utf-8",
     )
 
+    # prune again and save seen state
+    seen_map = prune_seen(seen_map, keep_days=keep_seen_days)
+    save_seen(state_path, seen_map)
+
     print(f"Saved HTML: {html_path.resolve()}")
     print(f"Saved JSON: {json_path.resolve()}")
+    print(f"Saved seen-state: {state_path.resolve()} (entries={len(seen_map)})")
     print(f"[INFO] Done: processed={processed}, accepted={accepted}, unique_total={len(all_by_url)}")
 
 
