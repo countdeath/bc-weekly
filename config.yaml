@@ -1,3 +1,7 @@
+max_run_minutes: 120
+per_release_timeout_sec: 90
+log_every: 25
+
 year: 2026
 max_items_per_discover_page: 70
 delay_ms: 900
@@ -436,3 +440,4 @@ blocks:
       - dungeoncore
       - video game music
       - dark disco
+
