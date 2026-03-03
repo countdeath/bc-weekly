@@ -1,6 +1,7 @@
 import asyncio
 import json
 import re
+import time
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -55,7 +56,11 @@ def _normalize_track_title(t: str) -> str:
     s = (t or "").strip().lower()
     s = re.sub(r"\[[^\]]+\]", "", s)
     s = re.sub(r"\([^\)]+\)", "", s)
-    s = re.sub(r"\b(instrumental|demo|remix|edit|version|mix|radio edit|extended)\b", "", s)
+    s = re.sub(
+        r"\b(instrumental|demo|remix|edit|version|mix|radio edit|extended)\b",
+        "",
+        s,
+    )
     s = re.sub(r"[^a-z0-9а-яё]+", " ", s, flags=re.IGNORECASE)
     s = re.sub(r"\s+", " ", s).strip()
     return s
@@ -106,6 +111,7 @@ async def discover_release_urls(page, discover_url: str, max_items: int) -> List
         print(f"[WARN] Skipping discover page (unreachable): {discover_url}")
         return []
 
+    # small scroll to load more cards
     for _ in range(3):
         await page.mouse.wheel(0, 2500)
         await page.wait_for_timeout(800)
@@ -204,7 +210,6 @@ async def parse_release_page(page, url: str) -> Optional[Release]:
 
 
 def passes_block_filters(rel: Release, cfg: Dict[str, Any], block: Dict[str, Any]) -> bool:
-    # global banned artist/page
     if _is_banned_by_artist_url(rel.url, cfg):
         return False
 
@@ -273,38 +278,72 @@ async def main():
     max_items = int(cfg.get("max_items_per_discover_page", 60))
     delay_ms = int(cfg.get("delay_ms", 900))
 
+    # GitHub-safe run limits:
+    max_run_minutes = int(cfg.get("max_run_minutes", 40))
+    per_release_timeout_sec = int(cfg.get("per_release_timeout_sec", 90))
+    log_every = int(cfg.get("log_every", 25))
+
+    run_deadline = time.time() + max_run_minutes * 60
+
     output_dir = Path("output")
     output_dir.mkdir(exist_ok=True)
 
     all_by_url: Dict[str, Release] = {}
     accepted_by_block_label: Dict[str, List[Release]] = {}
 
+    processed = 0
+    accepted = 0
+    stop_now = False
+
     async with async_playwright() as p:
         browser = await p.firefox.launch(headless=True)
         page = await browser.new_page()
 
-        # increase default timeouts (GitHub runner / network can be slower)
         page.set_default_timeout(60000)
         page.set_default_navigation_timeout(60000)
 
         for block in cfg["blocks"]:
+            if stop_now:
+                break
+
             block_name = block["name"]
             block_label = block.get("label", block_name)
             accepted_by_block_label.setdefault(block_label, [])
 
             for durl in block["discover_urls"]:
+                if stop_now:
+                    break
+
+                if time.time() > run_deadline:
+                    print("[WARN] Run deadline reached, stopping early (before discover).")
+                    stop_now = True
+                    break
+
                 print(f"[{block_label}] discover: {durl}")
                 urls = await discover_release_urls(page, durl, max_items=max_items)
 
                 for u in urls:
-                    # early skip banned artist urls to save requests
+                    if time.time() > run_deadline:
+                        print("[WARN] Run deadline reached, stopping early (inside releases loop).")
+                        stop_now = True
+                        break
+
                     if _is_banned_by_artist_url(u, cfg):
                         continue
 
                     if u in all_by_url:
                         continue
 
-                    rel = await parse_release_page(page, u)
+                    processed += 1
+                    if processed % log_every == 0:
+                        print(f"[INFO] Progress: processed={processed}, accepted={accepted}, unique_total={len(all_by_url)}")
+
+                    try:
+                        rel = await asyncio.wait_for(parse_release_page(page, u), timeout=per_release_timeout_sec)
+                    except asyncio.TimeoutError:
+                        print(f"[WARN] Per-release timeout ({per_release_timeout_sec}s), skipping: {u}")
+                        continue
+
                     await page.wait_for_timeout(delay_ms)
 
                     if not rel:
@@ -320,13 +359,14 @@ async def main():
 
                     if passes_block_filters(rel, cfg, block):
                         accepted_by_block_label[block_label].append(rel)
+                        accepted += 1
 
         await browser.close()
 
     for k in accepted_by_block_label:
         accepted_by_block_label[k].sort(key=lambda r: (r.artist.lower(), r.title.lower()))
 
-    # stamp in Kyiv time, includes time to avoid overwriting even if rerun same day
+    # stamp in Kyiv time, includes time to avoid overwriting
     if KYIV_TZ:
         stamp = datetime.now(KYIV_TZ).strftime("%Y-%m-%d_%H-%M")
     else:
@@ -345,6 +385,7 @@ async def main():
 
     print(f"Saved HTML: {html_path.resolve()}")
     print(f"Saved JSON: {json_path.resolve()}")
+    print(f"[INFO] Done: processed={processed}, accepted={accepted}, unique_total={len(all_by_url)}")
 
 
 if __name__ == "__main__":
